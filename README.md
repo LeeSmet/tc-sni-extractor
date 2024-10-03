@@ -1,4 +1,4 @@
-# tc-sni-extractor
+# Tc SNI Extractor
 
 ## Prerequisites
 
