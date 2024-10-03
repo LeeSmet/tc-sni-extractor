@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 aya-ebpf = "0.1.0"
 aya-log-ebpf = "0.1.0"
+network-types = "0.0.7"
 tc-sni-extractor-common = { path = "../tc-sni-extractor-common" }
 
 [[bin]]

@@ -1,13 +1,16 @@
+use aya::maps::{PerCpuArray, PerCpuValues};
 use aya::programs::{tc, SchedClassifier, TcAttachType};
+use aya::util::nr_cpus;
 use aya::{include_bytes_aligned, Bpf};
 use aya_log::BpfLogger;
 use clap::Parser;
-use log::{info, warn, debug};
+use log::{debug, info, warn};
+use tc_sni_extractor_common::SniBuffer;
 use tokio::signal;
 
 #[derive(Debug, Parser)]
 struct Opt {
-    #[clap(short, long, default_value = "eth0")]
+    #[clap(default_value = "eth0")]
     iface: String,
 }
 
@@ -44,8 +47,16 @@ async fn main() -> Result<(), anyhow::Error> {
         // This can happen if you remove all log statements from your eBPF program.
         warn!("failed to initialize eBPF logger: {}", e);
     }
+
+    let mut array = PerCpuArray::try_from(bpf.map_mut("SNI_BUFFER").unwrap())?;
+    let nr_cpus = nr_cpus()?;
+    array.set(
+        0,
+        PerCpuValues::try_from(vec![SniBuffer { buf: [0; 64] }; nr_cpus]).unwrap(),
+        0,
+    )?;
     // error adding clsact to the interface if it is already added is harmless
-    // the full cleanup can be done with 'sudo tc qdisc del dev eth0 clsact'.
+    // the full cleanup can be done with 'sudo tc qdisc del dev <iface> clsact'.
     let _ = tc::qdisc_add_clsact(&opt.iface);
     let program: &mut SchedClassifier = bpf.program_mut("tc_sni_extractor").unwrap().try_into()?;
     program.load()?;

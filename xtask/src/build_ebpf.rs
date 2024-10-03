@@ -42,12 +42,7 @@ pub struct Options {
 pub fn build_ebpf(opts: Options) -> Result<(), anyhow::Error> {
     let dir = PathBuf::from("tc-sni-extractor-ebpf");
     let target = format!("--target={}", opts.target);
-    let mut args = vec![
-        "build",
-        target.as_str(),
-        "-Z",
-        "build-std=core",
-    ];
+    let mut args = vec!["build", target.as_str(), "-Z", "build-std=core"];
     if opts.release {
         args.push("--release")
     }
@@ -59,6 +54,7 @@ pub fn build_ebpf(opts: Options) -> Result<(), anyhow::Error> {
     let status = Command::new("cargo")
         .current_dir(dir)
         .env_remove("RUSTUP_TOOLCHAIN")
+        //.env("RUSTFLAGS", "-C debuginfo=full -C link-arg=--btf")
         .args(&args)
         .status()
         .expect("failed to build bpf program");
