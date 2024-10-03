@@ -1,0 +1,3 @@
+[workspace]
+resolver = "2"
+members = ["xtask", "tc-sni-extractor", "tc-sni-extractor-common"]
