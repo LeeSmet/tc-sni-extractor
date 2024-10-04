@@ -11,7 +11,7 @@ use aya_ebpf::{
 use aya_log_ebpf::info;
 use network_types::{
     eth::{EthHdr, EtherType},
-    ip::Ipv4Hdr,
+    ip::{Ipv4Hdr, Ipv6Hdr},
     tcp::TcpHdr,
 };
 use tc_sni_extractor_common::SniBuffer;
@@ -29,13 +29,15 @@ pub fn tc_sni_extractor(ctx: TcContext) -> i32 {
 
 fn try_tc_sni_extractor(ctx: TcContext) -> Result<i32, ()> {
     let ethhdr: EthHdr = ctx.load(0).map_err(|_| ())?;
-    match ethhdr.ether_type {
-        EtherType::Ipv4 => {}
+    let iph_len = match ethhdr.ether_type {
+        EtherType::Ipv4 => {
+            let ipv4hdr: Ipv4Hdr = ctx.load(EthHdr::LEN).map_err(|_| ())?;
+            ipv4hdr.ihl() as usize * 4
+        }
+        EtherType::Ipv6 => Ipv6Hdr::LEN,
         _ => return Ok(TC_ACT_PIPE),
-    }
+    };
 
-    let ipv4hdr: Ipv4Hdr = ctx.load(EthHdr::LEN).map_err(|_| ())?;
-    let iph_len = ipv4hdr.ihl() as usize * 4;
     let tcp_header: TcpHdr = ctx.load(EthHdr::LEN + iph_len).map_err(|_| ())?;
     // size in 32 bit words
     let tcp_header_len =
@@ -47,7 +49,6 @@ fn try_tc_sni_extractor(ctx: TcContext) -> Result<i32, ()> {
 }
 
 fn parse_sni_header(ctx: TcContext, offset: usize) -> Result<i32, ()> {
-    //info!(&ctx, "Start parsing packet at {} bytes ofsfet", offset);
     let mut pos = offset;
     if ctx.load::<u8>(pos).map_err(|_| ())? != 0x16 {
         // handshake record type
